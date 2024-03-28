@@ -1,3 +1,6 @@
+import { config } from 'dotenv'
+config()
+
 import { execute } from './execute'
 import {
   createTestClient,
@@ -166,6 +169,18 @@ async function testDeposit() {
   console.log('deposit test result', ret)
 }
 
+async function testReadPosition() {
+  const walletAddress = '0x0C0e6d63A7933e1C2dE16E1d5E61dB1cA802BF51'
+
+  // get all positions
+  const positions = await perennial.getAllPositions(walletAddress, undefined)
+  console.log('positions', positions)
+
+  // get all orders
+  const orders = await perennial.getAllOrders(walletAddress, undefined)
+  console.log('orders', orders)
+}
+
 async function testIncreasePosition() {
   console.log('### Testing increasePosition')
   const executionPayload = await perennial.increasePosition(
@@ -204,6 +219,7 @@ process.stdin.on('data', async (data) => {
     await fundWallet()
     await increaseTime(30)
     await testIncreasePosition()
+    // await testReadPosition()
     // testDeposit()
   }
 })

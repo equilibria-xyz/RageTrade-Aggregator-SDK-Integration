@@ -86,7 +86,7 @@ const _rpcUrl = rpc[arbitrum.id].connection.url
 const graphUrl = process.env.PERENNIAL_GRAPH_URL_ARBITRUM || ''
 
 /// Constants
-const pythUrl = 'https://hermes.pyth.network'
+const pythUrl = process.env.PERENNIAL_PYTH_URL || 'https://hermes.pyth.network'
 const PNL_COLLATERAL_TOKEN = tokens['USDC.e']
 
 const publicClient = createPublicClient({
