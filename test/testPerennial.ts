@@ -181,6 +181,33 @@ async function testReadPosition() {
   console.log('orders', orders)
 }
 
+async function testGetTradePreview() {
+  const res = await perennial.getOpenTradePreview(
+    walletAddress,
+    [
+      {
+        sizeDelta: {
+          amount: FixedNumber.fromString('.5'),
+          isTokenAmount: true
+        },
+        marginDelta: {
+          amount: FixedNumber.fromString('1000'),
+          isTokenAmount: false
+        },
+        direction: 'LONG',
+        marketId: encodeMarketId(wallet1.chain.id.toString(), 'PERENNIAL', SupportedAsset.eth),
+        mode: 'ISOLATED',
+        triggerData: undefined,
+        slippage: 20,
+        type: 'MARKET',
+        collateral: tokens['USDC.e']
+      }
+    ],
+    []
+  )
+  console.log(res[0])
+}
+
 async function testIncreasePosition() {
   console.log('### Testing increasePosition')
   const executionPayload = await perennial.increasePosition(
@@ -237,6 +264,11 @@ async function testOpenTradePreview() {
   console.log('getOpenTradePreview result:', preview)
 }
 
+async function testAllPositions() {
+  const positions = await perennial.getAllPositions('0x0bd27fac898a59680b9dc92bb7378df610825e8d', undefined)
+  console.log('positions', positions)
+}
+
 console.log('Please use the following command to fork the chain so we can simulate responses:')
 console.log(`\x1b[33manvil --fork-url https://arb-mainnet.g.alchemy.com/v2/<KEY HERE> \x1b[0m`)
 
@@ -248,7 +280,10 @@ process.stdin.on('data', async (data) => {
     // await increaseTime(30)
     // await testIncreasePosition()
     // await testReadPosition()
-    await testOpenTradePreview()
+    // await testOpenTradePreview()
     // testDeposit()
+    // testGetTradePreview()
+    // testAllPositions()
+    // testFetchMarkets()
   }
 })
