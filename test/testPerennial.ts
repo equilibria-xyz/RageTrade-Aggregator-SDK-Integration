@@ -20,7 +20,7 @@ import { encodeMarketId } from '../src/common/markets'
 import { ActionParam } from '../src/interfaces/IActionExecutor'
 import { tokens } from '../src/common/tokens'
 
-const rpcUrl = 'http://127.0.0.1:8545'
+const rpcUrl = process.env.RPC || 'http://127.0.0.1:8545'
 
 async function increaseTime(seconds: number = 120) {
   const newTime = Math.floor(new Date().getTime() / 1000 + seconds)
@@ -181,6 +181,33 @@ async function testReadPosition() {
   console.log('orders', orders)
 }
 
+async function testGetTradePreview() {
+  const res = await perennial.getOpenTradePreview(
+    walletAddress,
+    [
+      {
+        sizeDelta: {
+          amount: FixedNumber.fromString('.5'),
+          isTokenAmount: true
+        },
+        marginDelta: {
+          amount: FixedNumber.fromString('1000'),
+          isTokenAmount: false
+        },
+        direction: 'LONG',
+        marketId: encodeMarketId(wallet1.chain.id.toString(), 'PERENNIAL', SupportedAsset.eth),
+        mode: 'ISOLATED',
+        triggerData: undefined,
+        slippage: 20,
+        type: 'MARKET',
+        collateral: tokens['USDC.e']
+      }
+    ],
+    []
+  )
+  console.log(res[0])
+}
+
 async function testIncreasePosition() {
   console.log('### Testing increasePosition')
   const executionPayload = await perennial.increasePosition(
@@ -209,6 +236,11 @@ async function testIncreasePosition() {
   console.log('increasePosition test result', ret)
 }
 
+async function testAllPositions() {
+  const positions = await perennial.getAllPositions('0x0bd27fac898a59680b9dc92bb7378df610825e8d', undefined)
+  console.log('positions', positions)
+}
+
 console.log('Please use the following command to fork the chain so we can simulate responses:')
 console.log(`\x1b[33manvil --fork-url https://arb-mainnet.g.alchemy.com/v2/<KEY HERE> \x1b[0m`)
 
@@ -216,10 +248,13 @@ console.log(`\x1b[33manvil --fork-url https://arb-mainnet.g.alchemy.com/v2/<KEY 
 console.log('Press ENTER to continue...')
 process.stdin.on('data', async (data) => {
   if (data.toString() === '\n') {
-    await fundWallet()
-    await increaseTime(30)
-    await testIncreasePosition()
+    // await fundWallet()
+    // await increaseTime(30)
+    // await testIncreasePosition()
     // await testReadPosition()
     // testDeposit()
+    // testGetTradePreview()
+    // testAllPositions()
+    testFetchMarkets()
   }
 })
