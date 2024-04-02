@@ -447,7 +447,7 @@ export default class PerennialAdapter implements IAdapterV1 {
     precision: (number | undefined)[],
     opts?: ApiOpts
   ): Promise<OrderBook[]> {
-    throw new Error('Method not implemented.')
+    return Promise.resolve([])
   }
 
   async getLiquidationHistory(
@@ -1270,6 +1270,8 @@ export default class PerennialAdapter implements IAdapterV1 {
         : calcFundingRates(market.fundingRate.short)
 
       const cumulativeFunding = FixedNumber.fromValue(fundingRate.hourlyFunding, 6)
+      const pnl =
+        positionPnl.accumulatedPnl.pnl + positionPnl.keeperFees + positionPnl.positionFees + positionPnl.liquidationFee
 
       const positionInfo: PositionInfo = {
         protocolId: 'PERENNIAL',
@@ -1279,12 +1281,12 @@ export default class PerennialAdapter implements IAdapterV1 {
         margin: toAmountInfo(BigNumber.from(position.local.collateral), 6, false),
         direction: position.side === PositionSide.long ? 'LONG' : 'SHORT',
         unrealizedPnl: {
-          aggregatePnl: FixedNumber.fromValue(positionPnl.accumulatedPnl.pnl, 6),
-          fundingFee: FixedNumber.fromValue(positionPnl.accumulatedPnl.funding, 6),
+          aggregatePnl: FixedNumber.fromValue(positionPnl.accumulatedPnl.value, 6),
+          fundingFee: FixedNumber.fromValue(-positionPnl.accumulatedPnl.funding, 6),
           borrowFee: FixedNumber.fromValue(positionPnl.accumulatedPnl.interest, 6),
-          rawPnl: FixedNumber.fromValue(positionPnl.accumulatedPnl.value, 6)
+          rawPnl: FixedNumber.fromValue(pnl, 6)
         },
-        avgEntryPrice: FixedNumber.fromValue(positionPnl.averageEntryPrice),
+        avgEntryPrice: FixedNumber.fromValue(positionPnl.averageEntryPrice, 6),
         liquidationPrice,
         mode: 'ISOLATED',
         cumulativeFunding,
