@@ -282,6 +282,9 @@ export default class PerennialAdapter implements IAdapterV1 {
         errMsg = 'Order would exceed max leverage'
       }
 
+      const nonImpactTradeFee = Big6Math.mul(marketSnapshot.parameter.positionFee, tradeFee.total)
+      const totalNonImpactTradeFee = marketSnapshot.parameter.settlementFee + nonImpactTradeFee
+
       tradePreviews.push({
         marketId: newOrder.marketId,
         leverage: FixedNumber.fromValue(newLeverage, 6),
@@ -289,11 +292,11 @@ export default class PerennialAdapter implements IAdapterV1 {
         margin: toAmountInfo(BigNumber.from(newCollateral), 6, true),
         avgEntryPrice: FixedNumber.fromValue(estEntryPrice.total, 6),
         liqudationPrice: FixedNumber.fromValue(liquidationPrice, 6),
-        fee: FixedNumber.fromValue(tradeFee.total, 6),
+        fee: FixedNumber.fromValue(totalNonImpactTradeFee, 6),
         collateral: tokens['USDC.e'],
         isError,
         errMsg,
-        priceImpact: FixedNumber.fromValue(estEntryPrice.priceImpact, 6)
+        priceImpact: FixedNumber.fromValue(estEntryPrice.priceImpactPercentage, 6)
       })
     }
     return tradePreviews
