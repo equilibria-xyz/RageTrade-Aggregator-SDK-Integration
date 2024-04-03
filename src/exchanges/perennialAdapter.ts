@@ -296,7 +296,7 @@ export default class PerennialAdapter implements IAdapterV1 {
         collateral: tokens['USDC.e'],
         isError,
         errMsg,
-        priceImpact: FixedNumber.fromValue(estEntryPrice.priceImpactPercentage, 6)
+        priceImpact: FixedNumber.fromValue(estEntryPrice.priceImpactPercentage * 100n, 6)
       })
     }
     return tradePreviews
