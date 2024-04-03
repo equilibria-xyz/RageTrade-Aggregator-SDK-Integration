@@ -269,6 +269,13 @@ async function testAllPositions() {
   console.log('positions', positions)
 }
 
+async function testDynamicMarketMetadata() {
+  const metadata = await perennial.getDynamicMarketMetadata([
+    encodeMarketId(wallet1.chain.id.toString(), 'PERENNIAL', SupportedAsset.eth)
+  ])
+  console.log('metadata', metadata)
+}
+
 console.log('Please use the following command to fork the chain so we can simulate responses:')
 console.log(`\x1b[33manvil --fork-url https://arb-mainnet.g.alchemy.com/v2/<KEY HERE> \x1b[0m`)
 
@@ -284,6 +291,7 @@ process.stdin.on('data', async (data) => {
     // testDeposit()
     // testGetTradePreview()
     // testAllPositions()
-    // testFetchMarkets()
+    await testFetchMarkets()
+    // await testDynamicMarketMetadata()
   }
 })
