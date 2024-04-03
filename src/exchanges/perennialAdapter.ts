@@ -643,7 +643,7 @@ export default class PerennialAdapter implements IAdapterV1 {
           UPDATE: true,
           CANCEL: true
         },
-        minLeverage: ZERO_FN,
+        minLeverage: FixedNumber.fromString('0.1'),
         maxLeverage: FixedNumber.fromValue(adjustedMaxLeverage, 6),
         minInitialMargin: FixedNumber.fromValue(market.riskParameter.minMargin, 6),
         amountStep: undefined,
