@@ -612,6 +612,13 @@ export default class PerennialAdapter implements IAdapterV1 {
         minMargin: market.riskParameter.minMargin,
         collateral: marketSnapshots?.user?.[key].local.collateral ?? 0n
       })
+
+      // Adjust max leverage for app to min(100x, maxLev rounded down to nearest 5x)
+      const adjustedMaxLeverage = Big6Math.min(
+        Big6Math.ONE * 100n,
+        (maxLeverage / Big6Math.fromFloatString('5')) * Big6Math.fromFloatString('5')
+      )
+
       acc[marketId] = {
         marketId,
         marketSymbol: AssetMetadata[asset as SupportedAsset].symbol,
@@ -637,8 +644,8 @@ export default class PerennialAdapter implements IAdapterV1 {
           CANCEL: true
         },
         minLeverage: ZERO_FN,
-        maxLeverage: FixedNumber.fromValue(maxLeverage, 6),
-        minInitialMargin: FixedNumber.fromString(Big6Math.toFloatString(market.riskParameter.minMargin), 6),
+        maxLeverage: FixedNumber.fromValue(adjustedMaxLeverage, 6),
+        minInitialMargin: FixedNumber.fromValue(market.riskParameter.minMargin, 6),
         amountStep: undefined,
         priceStep: undefined,
         minPositionSize: FixedNumber.fromString('0.01'),
