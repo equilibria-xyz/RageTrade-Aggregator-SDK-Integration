@@ -1469,7 +1469,7 @@ export default class PerennialAdapter implements IAdapterV1 {
         address: oracle.providerAddress,
         abi: KeeperOracleAbi,
         eventName: 'OracleProviderVersionFulfilled',
-        pollingInterval: CACHE_SECOND * 30, // poll every 10 seconds
+        pollingInterval: CACHE_SECOND * 10, // poll every 10 seconds
         onLogs: async () => {
           await invalidateCacheByKeyComponents([PERENNIAL_CACHE_PREFIX, 'marketSnapshots'])
         }
