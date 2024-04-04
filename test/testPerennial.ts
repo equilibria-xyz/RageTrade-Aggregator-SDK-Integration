@@ -20,7 +20,7 @@ import { encodeMarketId } from '../src/common/markets'
 import { ActionParam } from '../src/interfaces/IActionExecutor'
 import { tokens } from '../src/common/tokens'
 
-const rpcUrl = process.env.PERENNIAL_RPC_URL_ARBITRUM || 'http://localhost:8545'
+const rpcUrl = process.env.PERENNIAL_RPC_URL_ARBITRUM || 'http://127.0.0.1:8545'
 
 async function increaseTime(seconds: number = 120) {
   const newTime = Math.floor(new Date().getTime() / 1000 + seconds)
@@ -291,7 +291,7 @@ process.stdin.on('data', async (data) => {
     // testDeposit()
     // testGetTradePreview()
     // testAllPositions()
-    await testFetchMarkets()
+    // await testFetchMarkets()
     // await testDynamicMarketMetadata()
   }
 })

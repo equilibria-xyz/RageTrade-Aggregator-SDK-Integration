@@ -57,7 +57,8 @@ import {
   AgentParams,
   AgentState,
   TradeDirection,
-  PositionData
+  PositionData,
+  AccountInfoData
 } from '../interfaces/V1/IRouterAdapterBaseV1'
 import { rpc } from '../common/provider'
 import { getAddress, zeroAddress, Address } from 'viem-v2'
@@ -411,7 +412,51 @@ export default class PerennialAdapter implements IAdapterV1 {
   }
 
   async getAccountInfo(wallet: string, opts?: ApiOpts): Promise<AccountInfo[]> {
-    return []
+    const marketSnapshots = await this._cachedMarketSnapshots({ address: getAddress(wallet), opts })
+    if (!marketSnapshots?.user) return []
+
+    const accountInfos: AccountInfoData<'PERENNIAL'>[] = await Promise.all(
+      Object.values(marketSnapshots.user).map(async (userMarketSnapshot) => {
+        if (userMarketSnapshot.side === PositionSide.maker)
+          return {
+            accountEquity: FixedNumber.fromString('0'),
+            unrealizedPnl: FixedNumber.fromString('0'),
+            availableToTrade: FixedNumber.fromString('0')
+          }
+
+        const pnl = await this._cachedActivePositionPnls({
+          asset: userMarketSnapshot.asset,
+          marketSnapshots,
+          address: getAddress(wallet),
+          opts
+        })
+
+        return {
+          accountEquity: FixedNumber.fromValue(userMarketSnapshot.nextNotional, 6),
+          unrealizedPnl: FixedNumber.fromValue(pnl?.realtime ?? 0n, 6),
+          availableToTrade: FixedNumber.fromValue(userMarketSnapshot.local.collateral, 6)
+        }
+      })
+    )
+
+    return [
+      {
+        protocolId: this.protocolId,
+        accountInfoData: accountInfos.reduce(
+          (acc, curr) => {
+            acc.accountEquity = acc.accountEquity.add(curr.accountEquity)
+            acc.unrealizedPnl = acc.unrealizedPnl.add(curr.unrealizedPnl)
+            acc.availableToTrade = acc.availableToTrade.add(curr.availableToTrade)
+            return acc
+          },
+          {
+            accountEquity: FixedNumber.fromString('0'),
+            unrealizedPnl: FixedNumber.fromString('0'),
+            availableToTrade: FixedNumber.fromString('0')
+          } as AccountInfoData<'PERENNIAL'>
+        )
+      }
+    ]
   }
 
   getMarketState(wallet: string, marketIds: Market['marketId'][], opts?: ApiOpts): Promise<MarketState[]> {
@@ -436,7 +481,7 @@ export default class PerennialAdapter implements IAdapterV1 {
     opts?: ApiOpts
   ): Promise<PaginatedRes<LiquidationInfo>> {
     const account = getAddress(wallet)
-    const marketInfo = await this._cachedMarkets()
+    const marketInfo = await this._cachedMarkets(opts)
     const marketIDs = Object.keys(marketInfo)
     const markets: Markets = []
 
@@ -495,11 +540,17 @@ export default class PerennialAdapter implements IAdapterV1 {
     }
   }
 
-  async getAvailableToTrade(wallet: string, params: AvailableToTradeParams<this['protocolId']>) {
-    return {
-      isTokenAmount: true,
-      amount: FixedNumber.fromString('0')
-    }
+  async getAvailableToTrade(wallet: string, params: AvailableToTradeParams<this['protocolId']>, opts?: ApiOpts) {
+    const zeroAmount = toAmountInfo(BigNumber.from(0), 6, false)
+
+    if (!params) return zeroAmount
+
+    const marketSnapshots = await this._cachedMarketSnapshots({ address: getAddress(wallet), opts })
+    const asset = decodeMarketId(params.market).protocolMarketId as SupportedAsset
+
+    if (!marketSnapshots?.user?.[asset]) return zeroAmount
+
+    return toAmountInfo(BigNumber.from(marketSnapshots.user[asset].local.collateral), 6, false, 6)
   }
 
   async deposit(params: DepositWithdrawParams[]): Promise<ActionParam[]> {
@@ -976,7 +1027,7 @@ export default class PerennialAdapter implements IAdapterV1 {
 
   async getMarketsInfo(marketIds: Market['marketId'][], opts?: ApiOpts): Promise<MarketInfo[]> {
     const marketsInfo: MarketInfo[] = []
-    const marketInfo = await this._cachedMarkets()
+    const marketInfo = await this._cachedMarkets(opts)
     for (const mId of marketIds) {
       if (marketInfo === undefined) throw new Error(`Market ${mId} not found`)
 
@@ -1028,7 +1079,7 @@ export default class PerennialAdapter implements IAdapterV1 {
     opts?: ApiOpts
   ): Promise<PaginatedRes<HistoricalTradeInfo>> {
     const account = getAddress(wallet)
-    const marketInfo = await this._cachedMarkets()
+    const marketInfo = await this._cachedMarkets(opts)
     const marketIDs = Object.keys(marketInfo)
     const markets: Markets = []
 
@@ -1391,7 +1442,7 @@ export default class PerennialAdapter implements IAdapterV1 {
         PERENNIAL_CACHE_PREFIX,
         asset,
         address,
-        marketSnapshot.pre.latestOracleVersion.timestamp,
+        Number(marketSnapshot.pre.latestOracleVersion.timestamp),
         'activePositionPnls'
       ],
       fn: async () => {

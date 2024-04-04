@@ -104,7 +104,7 @@ export type Protocol = {
  */
 export type AvailableToTradeParams<T extends ProtocolId> = T extends 'GMXV1' | 'GMXV2' | 'AEVO'
   ? undefined
-  : T extends 'SYNTHETIX_V2'
+  : T extends 'SYNTHETIX_V2' | 'PERENNIAL'
   ? { market: Market['marketId'] }
   : T extends 'HL'
   ? {
@@ -623,6 +623,12 @@ export type AccountInfoData<T extends ProtocolId> = T extends 'GMXV1' | 'GMXV2' 
       equityBalance: FixedNumber // The equity balance.
       availableBalance: FixedNumber // The available balance i.e. available to trade
       storedCollateral: StoredCollateralData<'AEVO'>
+    }
+  : T extends 'PERENNIAL'
+  ? {
+      accountEquity: FixedNumber // The equity of the account.
+      unrealizedPnl: FixedNumber // The aggregate unrealized PNL.
+      availableToTrade: FixedNumber // The amount available for trading.
     }
   : never
 
