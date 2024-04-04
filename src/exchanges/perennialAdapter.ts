@@ -2,7 +2,6 @@ import PerennialSDK, {
   SupportedAsset,
   ChainMarkets,
   AssetMetadata,
-  getUSDCContract,
   Big6Math,
   MultiInvokerAddresses,
   PositionSide,
@@ -61,7 +60,7 @@ import {
   PositionData
 } from '../interfaces/V1/IRouterAdapterBaseV1'
 import { rpc } from '../common/provider'
-import { getAddress, PublicClient, createPublicClient, zeroAddress, http, Address, parseAbiItem } from 'viem-v2'
+import { getAddress, zeroAddress, Address } from 'viem-v2'
 import { arbitrum as arbitrumChain, optimism } from 'viem/chains'
 import { arbitrum } from 'viem-v2/chains'
 import { Chain } from 'viem'
@@ -89,11 +88,6 @@ const graphUrl = process.env.PERENNIAL_GRAPH_URL_ARBITRUM || ''
 /// Constants
 const pythUrl = process.env.PERENNIAL_PYTH_URL || 'https://hermes.pyth.network'
 const PNL_COLLATERAL_TOKEN = tokens['USDC.e']
-
-const publicClient = createPublicClient({
-  chain: arbitrum,
-  transport: http(_rpcUrl)
-})
 
 const perennial = new PerennialSDK({ chainId: arbitrum.id, rpcUrl: _rpcUrl, graphUrl, pythUrl })
 
@@ -145,27 +139,15 @@ const formatOpenOrderToOrderInfo = (order: OpenOrder) => {
 
 export default class PerennialAdapter implements IAdapterV1 {
   protocolId: ProtocolId = 'PERENNIAL'
-  private rpcUrl: string
   private sdk: PerennialSDK = perennial
   private operatorApproved: boolean = false
-  private publicClient: PublicClient = publicClient
 
   constructor(rpcUrl?: string) {
-    this.rpcUrl = rpcUrl || _rpcUrl
-    this.publicClient = createPublicClient({
-      chain: arbitrum,
-      transport: http(this.rpcUrl)
-    })
+    if (rpcUrl) this.sdk = new PerennialSDK({ chainId: arbitrum.id, rpcUrl: rpcUrl, graphUrl, pythUrl })
   }
 
   async init(wallet: string | undefined, opts?: ApiOpts | undefined): Promise<void> {
     if (wallet) {
-      this.sdk = new PerennialSDK({
-        chainId: arbitrum.id,
-        rpcUrl: this.rpcUrl,
-        graphUrl: graphUrl,
-        pythUrl
-      })
       this.operatorApproved = await this._checkMarketFactoryApproval(wallet)
     }
 
@@ -532,7 +514,7 @@ export default class PerennialAdapter implements IAdapterV1 {
       if (approveOperatorTx) {
         txs.push(approveOperatorTx)
       }
-      const usdcContract = getUSDCContract(arbitrum.id, this.publicClient)
+      const usdcContract = this.sdk.contracts.getUSDCContract()
       const udscBalance = await usdcContract.read.balanceOf([account])
 
       const balanceFN = FixedNumber.fromValue(udscBalance, 6)
@@ -622,7 +604,7 @@ export default class PerennialAdapter implements IAdapterV1 {
     async (orderData: CreateOrder[], wallet: string, opts?: ApiOpts | undefined): Promise<ActionParam[]> => {
       let txs: ActionParam[] = []
       const account = getAddress(wallet)
-      const usdcContract = getUSDCContract(arbitrum.id, this.publicClient)
+      const usdcContract = this.sdk.contracts.getUSDCContract()
       const udscBalance = await usdcContract.read.balanceOf([account])
       const usdcAllowance = await usdcContract.read.allowance([account, MultiInvokerAddresses[arbitrum.id]])
       const balanceFN = FixedNumber.fromValue(udscBalance, 6)
@@ -1248,7 +1230,7 @@ export default class PerennialAdapter implements IAdapterV1 {
 
   async _checkUSDCApproval(wallet: string, amount: bigint) {
     const account = getAddress(wallet)
-    const usdcContract = getUSDCContract(arbitrum.id, this.publicClient)
+    const usdcContract = this.sdk.contracts.getUSDCContract()
     const usdcAllowance = await usdcContract.read.allowance([account, MultiInvokerAddresses[arbitrum.id]])
     return usdcAllowance >= amount
   }
