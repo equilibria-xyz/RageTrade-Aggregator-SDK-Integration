@@ -26,9 +26,9 @@
     "ethers-v6": "npm:ethers@6.8.0",
     "isomorphic-ws": "^5.0.0",
     "viem": "1.5.4",
-    "viem-v2.8.18": "npm:viem@2.8.18",
+    "viem-v2": "npm:viem@2.9.9",
     "ws": "^8.16.0",
-    "@perennial/sdk": "0.0.1-beta9"
+    "@perennial/sdk": "0.0.1-beta10"
   },
   "version": "1.0.0",
   "license": "MIT"
