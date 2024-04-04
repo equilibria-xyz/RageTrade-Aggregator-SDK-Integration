@@ -89,3 +89,11 @@ export async function cacheFetch<T>(args: CacheFetchArgs<T>): Promise<T> {
 export function getCachedValueByKey<T>(key: CacheFetchArgs<T>['key']) {
   return queryClient.getQueryData(key) as T
 }
+
+export function invalidateCacheByKeyComponents<T>(keyComponents: CacheFetchArgs<T>['key']) {
+  return queryClient.invalidateQueries({
+    predicate: ({ queryKey }) => {
+      return keyComponents.every((k) => queryKey.includes(k))
+    }
+  })
+}
