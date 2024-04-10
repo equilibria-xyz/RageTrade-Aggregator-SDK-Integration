@@ -19,7 +19,9 @@ import PerennialSDK, {
   OpenOrder,
   addressToAsset,
   Markets,
-  KeeperOracleAbi
+  KeeperOracleAbi,
+  pythPriceToBig6,
+  BigOrZero
 } from '@perennial/sdk'
 
 import { IAdapterV1, ProtocolInfo } from '../../src/interfaces/V1/IAdapterV1'
@@ -166,6 +168,7 @@ export default class PerennialAdapter implements IAdapterV1 {
   protocolId: ProtocolId = 'PERENNIAL'
   private sdk: PerennialSDK = perennial
   private operatorApproved: boolean = false
+  private livePrices: Record<string, bigint> = {}
 
   constructor(rpcUrl?: string) {
     if (rpcUrl)
@@ -183,6 +186,7 @@ export default class PerennialAdapter implements IAdapterV1 {
     }
 
     this._listenAndInvalidateOnMarketUpdates()
+    this._listenForLivePrices()
   }
 
   clearCredentials(): void {
@@ -1256,8 +1260,13 @@ export default class PerennialAdapter implements IAdapterV1 {
         : calcFundingRates(market.fundingRate.short)
 
       const cumulativeFunding = FixedNumber.fromValue(fundingRate.hourlyFunding, 6)
-      const pnl =
-        positionPnl.accumulatedPnl.pnl + positionPnl.keeperFees + positionPnl.positionFees + positionPnl.liquidationFee
+      const fundingPNL = positionPnl.accumulatedPnl.funding
+      const borrowPNL = positionPnl.accumulatedPnl.interest
+      const livePrice = this.livePrices[asset]
+
+      let livePnlDelta = livePrice ? Big6Math.mul(position.nextMagnitude, livePrice - market.global.latestPrice) : 0n
+      if (position.nextSide === PositionSide.short) livePnlDelta *= -1n
+      const realtimePnl = positionPnl.realtime + livePnlDelta
 
       const positionInfo: PositionInfo = {
         protocolId: 'PERENNIAL',
@@ -1267,10 +1276,11 @@ export default class PerennialAdapter implements IAdapterV1 {
         margin: toAmountInfo(BigNumber.from(position.local.collateral), 6, false),
         direction: position.side === PositionSide.long ? 'LONG' : 'SHORT',
         unrealizedPnl: {
-          aggregatePnl: FixedNumber.fromValue(positionPnl.accumulatedPnl.value, 6),
-          fundingFee: FixedNumber.fromValue(-positionPnl.accumulatedPnl.funding, 6),
-          borrowFee: FixedNumber.fromValue(positionPnl.accumulatedPnl.interest, 6),
-          rawPnl: FixedNumber.fromValue(pnl, 6)
+          aggregatePnl: FixedNumber.fromValue(realtimePnl, 6),
+          fundingFee: FixedNumber.fromValue(-fundingPNL, 6), // Negate since it's listed as a fee
+          borrowFee: FixedNumber.fromValue(-borrowPNL, 6), // Negate since it's listed as a fee
+          // Raw PNL is realtime except for the funding and borrow pnl
+          rawPnl: FixedNumber.fromValue(realtimePnl - fundingPNL - borrowPNL, 6)
         },
         avgEntryPrice: FixedNumber.fromValue(positionPnl.averageEntryPrice, 6),
         liquidationPrice,
@@ -1581,6 +1591,21 @@ export default class PerennialAdapter implements IAdapterV1 {
           await invalidateCacheByKeyComponents([PERENNIAL_CACHE_PREFIX, 'marketSnapshots'])
         }
       })
+    })
+  }
+
+  async _listenForLivePrices() {
+    const marketsOracles = await this.sdk.markets.read.marketOracles()
+    const priceIds = Object.values(marketsOracles).map((oracle) => oracle.underlyingId)
+
+    this.sdk.pythClient.subscribePriceFeedUpdates(priceIds, (priceFeed) => {
+      const feedId = `0x${priceFeed.id}`
+      const asset = Object.values(marketsOracles).find((oracle) => oracle.underlyingId === feedId)
+      const price = priceFeed.getPriceNoOlderThan(60)
+      if (!asset || !price) return
+
+      const normalizedPrice = pythPriceToBig6(BigOrZero(price.price), price.expo ?? 0)
+      this.livePrices[asset.asset] = AssetMetadata[asset.asset].transform(normalizedPrice)
     })
   }
 }
